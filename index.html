@@ -179,6 +179,7 @@
                             </tr>
                         </thead>
                         <tbody>
+                            <!-- ALL BSUS ROWS UNHIDDEN HERE -->
                             <tr><td class="bsus-row-heading">FLEXA RATE</td><td id="br_rate_1" class="text-right">0.0000</td><td id="br_prem_1" class="text-right">0</td></tr>
                             <tr><td class="bsus-row-heading">ADJUSTED FLEXA RATE DISC/LOAD</td><td id="br_rate_2" class="text-right">0.00 %</td><td id="br_prem_2" class="text-right">0</td></tr>
                             <tr class="bsus-highlight-row"><td>NET TOTAL</td><td id="br_rate_3" class="text-right">0.0000</td><td id="br_prem_3" class="text-right">0</td></tr>
@@ -192,7 +193,7 @@
                                         <option value="ZONE_I">Zone I</option><option value="ZONE_II">Zone II</option><option value="ZONE_III">Zone III</option><option value="ZONE_IV" selected>Zone IV</option>
                                     </select>
                                 </td>
-                                <td id="br_rate_8" class="text-right">0.0000</td><td id="br_prem_8" class="text-right">0</td>
+                                <td id="br_rate_8" class="text-right" style="visibility: hidden;">0.0000</td><td id="br_prem_8" class="text-right" style="visibility: hidden;">0</td>
                             </tr>
                             <tr><td class="bsus-row-heading">C ADJUSTED STFI RATE</td><td id="br_rate_9" class="text-right">0.0000</td><td id="br_prem_9" class="text-right">0</td></tr>
                             <tr><td class="bsus-row-heading">D TERRORISM</td><td id="br_rate_10" class="text-right">0.0000</td><td id="br_prem_10" class="text-right">0</td></tr>
@@ -205,7 +206,7 @@
                                         <option value="no" selected>NO</option><option value="yes">YES</option>
                                     </select>
                                 </td>
-                                <td id="br_rate_14" class="text-right">0.0000</td><td id="br_prem_14" class="text-right">0</td>
+                                <td id="br_rate_14" class="text-right" style="visibility: hidden;">0.0000</td><td id="br_prem_14" class="text-right" style="visibility: hidden;">0</td>
                             </tr>
                                 
                             <tr class="bsus-final-row"><td>FINAL NET RATE</td><td id="br_rate_15" class="text-right">0.0000</td><td id="br_prem_15" class="text-right">0</td></tr>
@@ -1662,4 +1663,133 @@ function runCalculation() {
     if (selectedPolicyType !== 'BGR') {
         const eqRate = parseFloat(document.getElementById('eqZone').value) || 0;
         eqPrem = M * eqRate;
-        document.getElementById('rate-eq').innerText = eqRate > 0 ? eqRate.I'm having a hard time fulfilling your request. Can I help you with something else instead?
+        document.getElementById('rate-eq').innerText = eqRate > 0 ? eqRate.toFixed(2) + " per mille" : "0.00";
+        document.getElementById('prem-eq').innerText = eqPrem.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        let stfiRate = parseFloat(document.getElementById('stfiToggle').value) || 0;
+        stfiPrem = M * stfiRate;
+        document.getElementById('rate-stfi').innerText = stfiRate > 0 ? stfiRate.toFixed(2) + " per mille" : "0.00";
+        document.getElementById('prem-stfi').innerText = stfiPrem.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        totalC = eqPrem + stfiPrem;
+        document.getElementById('total-c').innerText = totalC.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const ncDiscPct = parseFloat(document.getElementById('natcatDiscountToggle').value) || 0;
+        let natcatDiscountPrem = totalC * (ncDiscPct / 100);
+        document.getElementById('rate-natcat-disc').innerText = ncDiscPct.toFixed(2) + "%";
+        document.getElementById('prem-natcat-disc').innerText = "-" + natcatDiscountPrem.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        totalD = totalB + totalC - natcatDiscountPrem;
+        document.getElementById('total-d').innerText = totalD.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    let terrorismPrem = 0;
+    if (selectedPolicyType !== 'BGR') {
+        const tRate = parseFloat(document.getElementById('terrorismToggle').value) || 0;
+        terrorismPrem = M * tRate;
+        document.getElementById('rate-terrorism').innerText = tRate > 0 ? tRate.toFixed(2) + " per mille" : "0.00";
+        document.getElementById('prem-terrorism').innerText = terrorismPrem.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    let totalE = Math.round(totalD + terrorismPrem);
+    document.getElementById('total-e').innerText = totalE.toLocaleString('en-IN');
+
+    let gst = Math.round(totalE * 0.18);
+    document.getElementById('prem-gst').innerText = gst.toLocaleString('en-IN');
+    document.getElementById('total-payable').innerText = (totalE + gst).toLocaleString('en-IN');
+}
+
+function exportToExcel() {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    if (selectedPolicyType === 'BSUS') {
+        csvContent += "BSUS REVAMPED SPREADSHEET MATRIX WORKING LOG\nLine Item Description,Rate / Parameter Factor,Computed Premium (₹)\n";
+        document.querySelectorAll('#bsusRevampedSection table:first-of-type tbody tr').forEach(row => {
+            const cols = row.querySelectorAll('td');
+            if (cols.length >= 3) {
+                let rateBasis = cols[1].querySelector('select') ? cols[1].querySelector('select').value : (cols[1].querySelector('input') ? cols[1].querySelector('input').value + "%" : cols[1].innerText);
+                csvContent += `"${cols[0].innerText}","${rateBasis}","${cols[2].innerText.replace(/,/g, '')}"\n`;
+            }
+        });
+    } else {
+        csvContent += "Line Item Description,Rate / Basis,Premium (INR)\n";
+        document.querySelectorAll('#premiumTable tbody tr').forEach(row => {
+            if (!row.classList.contains('hidden')) {
+                const cols = row.querySelectorAll('td');
+                if (cols.length >= 3) csvContent += `"${cols[0].innerText}","${cols[1].innerText.replace(/,/g, '')}","${cols[2].innerText.replace(/,/g, '')}"\n`;
+            }
+        });
+    }
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", `Fire_Insurance_Premium_Working_${selectedPolicyType}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+function exportToPDF() {
+    const targetElement = selectedPolicyType === 'BSUS' ? document.getElementById('workspace') : document.getElementById('premiumWorkingPanel');
+    html2pdf().set({
+        margin: 10, filename: `Premium_Working_Statement_${selectedPolicyType}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: selectedPolicyType === 'BSUS' ? 'landscape' : 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css'] }
+    }).from(targetElement).save();
+}
+
+document.getElementById('bsusOccupancySearch').addEventListener('input', function() { filterBsusAutocomplete(this.value); });
+document.getElementById('occupancySearch').addEventListener('input', function() { handleAutocompleteSearch(this.value); });
+document.getElementById('hazardousGoodsSearchInput').addEventListener('input', renderHazardousGoodsTable);
+document.getElementById('hazardousCategorySelect').addEventListener('change', renderHazardousGoodsTable);
+document.getElementById('bsus_eq_zone_select').addEventListener('change', runCalculation);
+document.getElementById('bsus_discount_pct_input').addEventListener('input', runCalculation);
+document.getElementById('bsus_floater_select').addEventListener('change', runCalculation);
+document.getElementById('terrorismOptOutToggle').addEventListener('change', runCalculation);
+document.getElementById('construction').addEventListener('change', runCalculation);
+document.getElementById('enterRateManuallyToggle').addEventListener('change', function() { evaluateRowVisibility(); runCalculation(); });
+document.getElementById('manualRateValue').addEventListener('input', runCalculation);
+document.getElementById('bsusEnterRateManuallyToggle').addEventListener('change', function() { evaluateRowVisibility(); runCalculation(); });
+document.getElementById('bsusManualRateValue').addEventListener('input', runCalculation);
+
+document.getElementById('bgrRateOption').addEventListener('change', runCalculation);
+document.getElementById('basicDiscountValue').addEventListener('input', runCalculation);
+document.getElementById('eqZone').addEventListener('change', runCalculation);
+document.getElementById('stfiToggle').addEventListener('change', runCalculation);
+document.getElementById('natcatDiscountToggle').addEventListener('change', runCalculation);
+document.getElementById('terrorismToggle').addEventListener('change', runCalculation);
+document.getElementById('floaterToggle').addEventListener('change', function() { evaluateRowVisibility(); runCalculation(); });
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('survey-toggle')) {
+        const row = e.target.closest('tr');
+        const rowIndex = Array.from(row.parentNode.querySelectorAll('tr')).indexOf(row);
+        const configItem = safetySurveyQuestionsConfig[rowIndex];
+        if (configItem) {
+            let val = 0;
+            if (configItem.type === "no_yes") {
+                val = configItem.values[e.target.value];
+            } else if (configItem.type === "select") {
+                val = configItem.options[parseInt(e.target.value)].val;
+            }
+            row.querySelector('.survey-rate-weight').value = val;
+            let display = row.querySelector('.survey-rate-weight-text');
+            display.innerText = (val >= 0 ? "+" : "") + val.toFixed(2) + " %";
+            display.style.color = val < 0 ? "var(--success)" : (val > 0 ? "var(--danger)" : "#475569");
+        }
+        runCalculation();
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-container')) {
+        document.getElementById('bsusAutocompleteList').classList.add('hidden');
+        document.getElementById('autocompleteResultsList').classList.add('hidden');
+    }
+});
+
+adjustLayoutRules();
+initializeCurrencyInputListeners();
+calculateAggregateSumInsured();
+initializeSafetySurvey();
+renderHazardousGoodsTable();
+</script>
+</body>
+</html>
