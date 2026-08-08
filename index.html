@@ -1786,17 +1786,17 @@ function recalculateSurveyUI() {
                 const selectedIdx = parseInt(selectEl.value);
                 
                 if (selectedIdx === 0) { // 0 - 30
-                    if (currentCat === 4) val = 55.0;
-                    else if (currentCat === 3) val = 30.0;
-                    else val = 20.0;
+                    if (currentCat === 4) val = -55.0;       // -55% for Cat 4
+                    else if (currentCat === 3) val = -30.0;  // -30% for Cat 3
+                    else val = -20.0;                        // -20% for Cat 1 & 2
                 } else if (selectedIdx === 1) { // 30 - 70
-                    val = 20.0;
+                    val = -20.0; // -20% for all categories
                 } else if (selectedIdx === 2) { // 70 - 100
-                    val = 0.0;
+                    val = 0.0;   // 0% for all categories
                 } else if (selectedIdx === 3) { // 100 - 200
-                    val = -10.0;
+                    val = 10.0;  // +10% for all categories
                 } else if (selectedIdx === 4) { // > 200
-                    val = -50.0;
+                    val = 50.0;  // +50% for all categories
                 }
             }
             
@@ -1807,7 +1807,6 @@ function recalculateSurveyUI() {
         }
     });
 }
-
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.search-container')) {
         document.getElementById('bsusAutocompleteList').classList.add('hidden');
