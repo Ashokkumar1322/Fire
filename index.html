@@ -461,15 +461,16 @@ const safetySurveyQuestionsConfig = [
     { desc: "High standard of security with no. of security guards for 24 x 7 and CCTVs", type: "no_yes", values: { "NO": 5.0, "YES": -10.0 }, default: "YES" },
     { 
         desc: "Past 3 - years claims ratio", 
-        type: "select", 
+        type: "claims_ratio", 
         options: [
-            { text: "0 - 30", val: -30.0 },
-            { text: "30 - 70", val: -20.0 },
-            { text: "70 - 100", val: 0.0 },
-            { text: "100 - 200", val: 10.0 },
-            { text: "> 200", val: 50.0 }
+            { text: "0 - 30" },
+            { text: "30 - 70" },
+            { text: "70 - 100" },
+            { text: "100 - 200" },
+            { text: "> 200" }
         ],
         default: 2
+
     },
     { desc: "Basement in the building used for operations / storage / plant machinery installed therein", type: "no_yes", values: { "NO": 0.0, "YES": 5.0 }, default: "NO" },
     { desc: "Insured premises located within 1 km distance of a water body like seashore, lake, rivers, canal etc", type: "no_yes", values: { "NO": 0.0, "YES": 5.0 }, default: "NO" },
@@ -483,18 +484,15 @@ function initializeSafetySurvey() {
     safetySurveyQuestionsConfig.forEach((q, index) => {
         const row = document.createElement('tr');
         let selectHtml = '';
-        let initialVal = 0;
         
         if (q.type === 'no_yes') {
-            initialVal = q.values[q.default];
             selectHtml = `
                 <select class="survey-toggle bsus-select-field" style="width:90px; padding:2px; margin:0;">
                     <option value="NO" ${q.default === 'NO' ? 'selected' : ''}>NO</option>
                     <option value="YES" ${q.default === 'YES' ? 'selected' : ''}>YES</option>
                 </select>
             `;
-        } else if (q.type === 'select') {
-            initialVal = q.options[q.default].val;
+        } else if (q.type === 'select' || q.type === 'claims_ratio') {
             selectHtml = `<select class="survey-toggle bsus-select-field" style="width:90px; padding:2px; margin:0;">`;
             q.options.forEach((opt, idx) => {
                 selectHtml += `<option value="${idx}" ${q.default === idx ? 'selected' : ''}>${opt.text}</option>`;
@@ -502,22 +500,21 @@ function initializeSafetySurvey() {
             selectHtml += `</select>`;
         }
         
-        const initialText = (initialVal >= 0 ? "+" : "") + initialVal.toFixed(2) + " %";
-        const initialColor = initialVal < 0 ? "var(--success)" : (initialVal > 0 ? "var(--danger)" : "#475569");
-
         row.innerHTML = `
             <td style="text-align: center;">${index + 1}</td>
             <td>${q.desc}</td>
             <td style="text-align: center;">${selectHtml}</td>
             <td class="text-right" style="padding-right: 15px;">
-                <input type="hidden" class="survey-rate-weight" value="${initialVal}">
-                <span class="survey-rate-weight-text" style="color: ${initialColor}; font-weight: bold;">${initialText}</span>
+                <input type="hidden" class="survey-rate-weight" value="0">
+                <span class="survey-rate-weight-text" style="font-weight: bold;">0.00 %</span>
             </td>
         `;
         tbody.appendChild(row);
     });
+    
+    // Calculate initial values
+    if (typeof recalculateSurveyUI === "function") recalculateSurveyUI();
 }
-
 const bsusRateSchedule = [
   /*   1 */ {"sec":"III","code":"1002","cat":1,"desc":"Places of worships","rate":0.14},
   /*   2 */ {"sec":"III","code":"1003","cat":1,"desc":"Libraries","rate":0.21},
@@ -1160,6 +1157,7 @@ function filterBsusAutocomplete(query) {
                 document.getElementById('b-meta-cat').innerText = item.cat;
                 document.getElementById('b-meta-rate').innerText = item.rate.toFixed(4);
                 document.getElementById('bsusMetaDisplay').classList.remove('hidden');
+                recalculateSurveyUI();
                 runCalculation();
             });
             listContainer.appendChild(div);
@@ -1759,24 +1757,56 @@ document.getElementById('floaterToggle').addEventListener('change', function() {
 
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('survey-toggle')) {
-        const row = e.target.closest('tr');
-        const rowIndex = Array.from(row.parentNode.querySelectorAll('tr')).indexOf(row);
+        recalculateSurveyUI();
+        runCalculation();
+    }
+});
+
+// New function that dynamically calculates values based on Category
+function recalculateSurveyUI() {
+    // Find current category
+    let currentCat = 1;
+    const bsusIndexVal = document.getElementById('selectedBsusIndex').value;
+    if (bsusIndexVal !== "") {
+        currentCat = parseInt(bsusRateSchedule[parseInt(bsusIndexVal)].cat) || 1;
+    }
+
+    const rows = document.querySelectorAll('#bsusDynamicFeaturesTbody tr');
+    rows.forEach((row, rowIndex) => {
         const configItem = safetySurveyQuestionsConfig[rowIndex];
-        if (configItem) {
+        const selectEl = row.querySelector('.survey-toggle');
+        
+        if (configItem && selectEl) {
             let val = 0;
             if (configItem.type === "no_yes") {
-                val = configItem.values[e.target.value];
+                val = configItem.values[selectEl.value];
             } else if (configItem.type === "select") {
-                val = configItem.options[parseInt(e.target.value)].val;
+                val = configItem.options[parseInt(selectEl.value)].val;
+            } else if (configItem.type === "claims_ratio") {
+                const selectedIdx = parseInt(selectEl.value);
+                
+                if (selectedIdx === 0) { // 0 - 30
+                    if (currentCat === 4) val = 55.0;
+                    else if (currentCat === 3) val = 30.0;
+                    else val = 20.0;
+                } else if (selectedIdx === 1) { // 30 - 70
+                    val = 20.0;
+                } else if (selectedIdx === 2) { // 70 - 100
+                    val = 0.0;
+                } else if (selectedIdx === 3) { // 100 - 200
+                    val = -10.0;
+                } else if (selectedIdx === 4) { // > 200
+                    val = -50.0;
+                }
             }
+            
             row.querySelector('.survey-rate-weight').value = val;
             let display = row.querySelector('.survey-rate-weight-text');
             display.innerText = (val >= 0 ? "+" : "") + val.toFixed(2) + " %";
             display.style.color = val < 0 ? "var(--success)" : (val > 0 ? "var(--danger)" : "#475569");
         }
-        runCalculation();
-    }
-});
+    });
+}
 
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.search-container')) {
